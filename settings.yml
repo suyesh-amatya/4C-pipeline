@@ -1,0 +1,60 @@
+
+
+# for trimmomatic
+Trimmomatic:
+  INPUT_ROOT : Raw_fastqfiles
+  OUTPUT_ROOT : TRIMMED
+  OUTPUT_PAIRED : TRIMMED/pair
+  OUTPUT_UNPAIRED : TRIMMED/unpair
+  USE_CUTADAPT : False  # use True to run CUTADAPT on R2 files or False to skip
+  IS_RNA : True        # use True for RNA or False for DNA
+  # command args  
+  PHRED : phred33
+  LEADING : 3
+  TRAILING : 3
+  SLIDINGWINDOW : '4:15'
+  MINLEN : 18
+  THREADS : 8
+
+
+
+# for nextgenmap
+Nextgenmap :
+  INPUT_ROOT : TRIMMED/pair
+  OUTPUT_ROOT : Aligned/SAM
+  REFERENCE_FILE : hdfs:///Projects/4C/References/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  MIN-IDENTITY : 0.95
+  MIN-RESIDUES : 0.75
+  THREADS : 56
+  LOGS_ROOT : hdfs:///Projects/4C/Aligned/Logs/NGM
+  VERY_FAST : True  ### True to run ngm with parameter '--very-fast'. Read NGM docs for more about this parameter.
+  
+  
+  
+
+# for Postprocessing SAM files
+FilterSAM:
+  INPUT_ROOT : Aligned/SAM
+  OUTPUT_BAM : Aligned/BAM_unmapped
+  OUTPUT_MERGE : Aligned/Merged
+  OUTPUT_SORT : Aligned/Sorted
+  OUTPUT_FASTQ : Aligned/Bam2Fastq
+  THREADS : 56
+
+
+
+# for diamond
+Diamond :
+  INPUT_ROOT : Aligned/Bam2Fastq
+  OUTPUT_ROOT : Aligned/Diamond_output
+  REFERENCE_FASTA : References/HPVproteinsincludingnonoficial_201119.faa  # FASTA reference path
+  OUTPUT_PREFIX : Hpv_
+  # commond args
+  DIAMOND_RUN : blastx
+  TOP : 1
+  COMPRESS : 0
+  OUTPUT_FORMAT: 6
+  ADVANCED_TUNING : -c1
+  LOGS_ROOT : hdfs:///Projects/4C/Aligned/Logs/Diamond
+  
+
