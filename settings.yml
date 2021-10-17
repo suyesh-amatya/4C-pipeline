@@ -1,14 +1,37 @@
+# Number of job in the pipeline (in parenthesis the name of the job in the cluster)
 
+# job 1 (removeHuman)
+# Human mapped reads
+Unhuman:
+  INPUT_ROOT : Experiments/test/verify_new_db/
+  OUTPUT_BAM : Experiments/run_210902/extraction_nonhuman_raw
+  FILTER_BED : References/human1.bed
+  THREADS : 56
 
+# job 2 , job 6 (SortNConvert) # Warning: modifiy settings before running job 6.
+SortConvert:
+# As job 2
+#  INPUT_ROOT : Experiments/run_210902/extraction_nonhuman_raw
+#  OUTPUT_FASTQ : Human_filtered/run_210902/extraction_nonhuman_raw
+# As job 6
+  INPUT_ROOT : Nonhuman_NGM/run_210902/bam2fq
+  OUTPUT_FASTQ : Nonhuman_NGM/run_210902/sorted
+
+  SPLIT_PAIRS : False # True to split into separate fastq files for R1 and R2 reads for paired end files, False to create single fastq file
+  THREADS : 16
+
+# job 3 (Trimmomatic)
 # for trimmomatic
 Trimmomatic:
-  INPUT_ROOT : Raw_fastqfiles
-  OUTPUT_ROOT : TRIMMED
-  OUTPUT_PAIRED : TRIMMED/pair
-  OUTPUT_UNPAIRED : TRIMMED/unpair
-  USE_CUTADAPT : False  # use True to run CUTADAPT on R2 files or False to skip
-  IS_RNA : True        # use True for RNA or False for DNA
-  # command args  
+  INPUT_ROOT : Human_filtered/run_210902/extraction_nonhuman_raw
+  OUTPUT_SINGLE : Trimmomatic/run_210902/single
+  OUTPUT_PAIRED : Trimmomatic/run_210902/pair
+  OUTPUT_UNPAIRED : Trimmomatic/run_210902/unpair
+  SAVE_UNPAIRED : True
+  USE_CUTADAPT : True # use True to run CUTADAPT on R2 files or False to skip
+  IS_RNA : True       # use True for RNA or False for DNA
+  LOGS_ROOT : Logs/Trimmomatic
+  # command args
   PHRED : phred33
   LEADING : 3
   TRAILING : 3
@@ -16,38 +39,43 @@ Trimmomatic:
   MINLEN : 18
   THREADS : 8
 
-
-
+# job 4 (Nextgenmap)
 # for nextgenmap
 Nextgenmap :
-  INPUT_ROOT : TRIMMED/pair
-  OUTPUT_ROOT : Aligned/SAM
-  REFERENCE_FILE : hdfs:///Projects/4C/References/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  INPUT_ROOT : Trimmomatic/run_210902
+  OUTPUT_ROOT : Nonhuman_NGM/run_210902/extraction_nonhuman
+  REFERENCE_FILE : References/Homo_sapiens.GRCh38.dna.primary_assembly.fa
   MIN-IDENTITY : 0.95
   MIN-RESIDUES : 0.75
   THREADS : 56
-  LOGS_ROOT : hdfs:///Projects/4C/Aligned/Logs/NGM
+  LOGS_ROOT : Logs/NGM
   VERY_FAST : True  ### True to run ngm with parameter '--very-fast'. Read NGM docs for more about this parameter.
-  
-  
-  
 
-# for Postprocessing SAM files
+
+# job 5 (ConvertSam2BamUnmapped)
 FilterSAM:
-  INPUT_ROOT : Aligned/SAM
-  OUTPUT_BAM : Aligned/BAM_unmapped
-  OUTPUT_MERGE : Aligned/Merged
-  OUTPUT_SORT : Aligned/Sorted
-  OUTPUT_FASTQ : Aligned/Bam2Fastq
+  INPUT_ROOT : Nonhuman_NGM/run_210902/extraction_nonhuman
+  OUTPUT_BAM : Nonhuman_NGM/run_210902/bam2fq
   THREADS : 56
 
 
 
+# job 7 (kraken)
+Kraken :
+    INPUT_ROOT : Nonhuman_NGM/run_210902/sorted
+    OUTPUT_ROOT : Kraken/run_210902
+    KRAKEN_PATH : Resources/tools/kk2.1.2
+    KRAKEN_DB_PATH : Resources/tools/kraken_db/viral_bac_db
+    SAVE_FULL_OUTPUT : True
+    THREADS : 56
+
+# job 8 (diamond)
 # for diamond
 Diamond :
-  INPUT_ROOT : Aligned/Bam2Fastq
-  OUTPUT_ROOT : Aligned/Diamond_output
+  INPUT_ROOT : Nonhuman_NGM/run_210902/sorted
+  OUTPUT_ROOT : Diamond/run_210902
   REFERENCE_FASTA : References/HPVproteinsincludingnonoficial_201119.faa  # FASTA reference path
+  DIAMOND_TOOL : Resources/tools/diamond/v2.0.7/diamond
   OUTPUT_PREFIX : Hpv_
   # commond args
   DIAMOND_RUN : blastx
@@ -55,6 +83,36 @@ Diamond :
   COMPRESS : 0
   OUTPUT_FORMAT: 6
   ADVANCED_TUNING : -c1
-  LOGS_ROOT : hdfs:///Projects/4C/Aligned/Logs/Diamond
-  
+  LOGS_ROOT : Logs/Diamond
 
+# ************************************************
+# Extras
+
+# for Postprocessing SAM files
+Idxstat:
+  INPUT_ROOT : TCGA_Data/chunk11
+  OUTPUT_INDEX : Index/Index_last
+  OUTPUT_STAT: Index/Idxstat_last
+  THREADS : 56
+
+# for upload from local
+Upload:
+  INPUT_ROOT :
+  OUTPUT_ROOT :
+  THREASHOLD_SIZE :
+  MAX_SIZE_PAIR_FILTER :
+
+# for splitting large FASTQ file
+Split_Fastq:
+  INPUT_ROOT :
+
+Merge:
+  INPUT_ROOT : Human_filtered/BAM_unmapped
+  OUTPUT_MERGE : Human_filtered/Merged
+  THREADS : 56
+
+# diamond post processing scripts to create stats table
+Filter_Diamond :
+  INPUT_ROOT:
+  OUTPUT_ROOT:
+  REPORT_FILE:
